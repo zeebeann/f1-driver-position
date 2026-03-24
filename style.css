@@ -1,0 +1,158 @@
+* { 
+    box-sizing: border-box; 
+    margin: 0; 
+    padding: 0; 
+}
+
+html, body { 
+    width: 100%; 
+    height: 100%; 
+    overflow: hidden; 
+    font-family: Inter, Arial, sans-serif; 
+    background: #0b0f1f; 
+    color: #e8ebf3; 
+}
+
+body { 
+    position: relative; 
+    display: flex;
+}
+
+#ui { 
+    position: absolute; 
+    top: 16px; 
+    left: 16px; 
+    z-index: 10; 
+    background: rgba(4, 9, 20, 0.85); 
+    border: 1px solid #2f5ba3; 
+    border-radius: 8px; 
+    padding: 12px 14px; 
+    width: 300px; 
+    max-height: 80vh; 
+    backdrop-filter: blur(3px); 
+    overflow-y: auto; 
+}
+
+#ui h1 { 
+    font-size: 1rem; 
+    margin-bottom: 12px; 
+    color: #b3ccff; 
+}
+
+#driverList { 
+    display: grid; 
+    grid-template-columns: 1fr; 
+    gap: 6px; 
+    margin-bottom: 12px; 
+}
+
+.driver-btn { 
+    padding: 8px 10px; 
+    border: 1px solid #3c5d91; 
+    background: #121c2f; 
+    color: #f1f4ff; 
+    border-radius: 6px; 
+    cursor: pointer; 
+    text-align: left; 
+    transition: all 0.2s; 
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.driver-btn:hover { 
+    background: #1e2a45; 
+    border-color: #5a8fd9; 
+}
+
+.driver-btn:active { 
+    background: #364f88; 
+}
+
+#status { 
+    font-size: 0.82rem; 
+    line-height: 1.4; 
+    color: #b0b8ce; 
+    margin-top: 8px; 
+    padding: 8px; 
+    background: rgba(0, 0, 0, 0.3); 
+    border-radius: 4px; 
+}
+
+#details {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    width: 450px;
+    max-height: 80vh;
+    background: rgba(4, 9, 20, 0.85);
+    border: 1px solid #2f5ba3;
+    border-radius: 8px;
+    padding: 14px;
+    backdrop-filter: blur(3px);
+    overflow-y: auto;
+    z-index: 10;
+}
+
+#detailsContent {
+    display: none;
+}
+
+#detailsContent.active {
+    display: block;
+}
+
+.details-header {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #b3ccff;
+    margin-bottom: 12px;
+    border-bottom: 1px solid #2f5ba3;
+    padding-bottom: 8px;
+}
+
+.details-info {
+    margin-bottom: 16px;
+}
+
+.details-label {
+    font-size: 0.85rem;
+    color: #a0b0d8;
+    margin-bottom: 4px;
+    font-weight: 500;
+}
+
+.details-value {
+    font-size: 1rem;
+    color: #e8ebf3;
+    font-weight: 600;
+}
+
+.races-list {
+    margin-top: 12px;
+}
+
+.races-title {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #b3ccff;
+    margin-bottom: 8px;
+}
+
+.race-item {
+    background: rgba(18, 28, 47, 0.6);
+    border-left: 3px solid #5a8fd9;
+    padding: 8px;
+    margin-bottom: 6px;
+    border-radius: 4px;
+    font-size: 0.9rem;
+}
+
+.race-round {
+    font-weight: 600;
+    color: #c7d8ff;
+}
+
+.race-points {
+    color: #00ff9f;
+    font-weight: 600;
+}
