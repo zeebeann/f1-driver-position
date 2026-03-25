@@ -2,6 +2,9 @@
 // F1 Driver Position App
 // ============================================================================
 
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
 const API_BASE = 'https://f1api.dev/api';
 const SEASON = 2026;
 
@@ -111,39 +114,24 @@ async function selectDriver(driverId) {
     if (driver) {
         updateStatus(`Loading race data for ${driver.driver.name} ${driver.driver.surname}...`);
         const racePoints = await fetchDriverRacePoints(driverId);
-        
-        // Build the details panel
         const detailsContent = document.getElementById('detailsContent');
-        const raceGrids = await Promise.all(racePoints.map(async (race, index) => {
-            const grid = await renderRaceGrid(race.points, driver.position);
-            return `<div class="race-grid" style="z-index: ${index + 1};">${grid}</div>`;
-        }));
+        detailsContent.innerHTML = '<canvas id="threeCanvas" width="600" height="600" style="display:block;margin:auto;"></canvas>';
+
+        // Prepare SVGs for 3D layering
         const positionGrid = await renderPositionAsDigits(driver.position);
-        const raceItems = await Promise.all(racePoints.map(async (race) => {
-            const svg = await renderRaceGrid(race.points, driver.position);
-            return `
-            <div class="race-item">
-                ${svg}
-                <div>Position: ${race.position}</div>
-                <div class="race-points">Points: ${renderPointsDots(race.points)} (${race.points})</div>
-            </div>
-            `;
+        const raceGrids = await Promise.all(racePoints.map(async (race) => {
+            return await renderRaceGrid(race.points, driver.position);
         }));
-        detailsContent.innerHTML = `
-            <div class="grid-container">
-                ${raceGrids.join('')}
-                <div class="position-grid" style="z-index: ${racePoints.length + 1};">${positionGrid}</div>
-            </div>
-            
-            <div class="races-list">
-                <div class="races-title">Race Results (${racePoints.length} races)</div>
-                ${raceItems.join('')}
-            </div>
-        `;
-        
+        // Extract SVG markup only
+        const extractSVG = html => {
+            const match = html.match(/<svg[\s\S]*?<\/svg>/);
+            return match ? match[0] : '';
+        };
+        const allSvgs = [extractSVG(positionGrid), ...raceGrids.map(extractSVG)];
+        initThreeJS(allSvgs);
+
         detailsContent.classList.add('active');
         updateStatus(`${driver.driver.name} ${driver.driver.surname} - Races: ${racePoints.length}`);
-        
         console.log('Driver info:', {
             name: `${driver.driver.name} ${driver.driver.surname}`,
             position: driver.position,
@@ -151,6 +139,55 @@ async function selectDriver(driverId) {
             races: racePoints
         });
     }
+// --- 3D SVG Layering with OrbitControls ---
+function initThreeJS(svgStrings) {
+    const canvas = document.getElementById('threeCanvas');
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, canvas.width / canvas.height, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ canvas, alpha: true });
+    renderer.setClearColor(0x000000, 0);
+    camera.position.set(0, 0, 5);
+
+    // OrbitControls for mouse rotation
+    const OrbitControlsGlobal = window.OrbitControls || (window.THREE && window.THREE.OrbitControls);
+    if (!OrbitControlsGlobal) {
+        updateStatus('OrbitControls is not loaded.');
+        throw new Error('OrbitControls is not loaded.');
+    }
+    const controls = new OrbitControlsGlobal(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.enableZoom = true;
+    controls.enablePan = false;
+
+    // Helper to load SVG as texture
+    const loadTexture = (svgString) => {
+        const dataUrl = 'data:image/svg+xml;base64,' + btoa(svgString);
+        return new Promise((resolve) => {
+            const loader = new THREE.TextureLoader();
+            loader.load(dataUrl, resolve);
+        });
+    };
+
+    // Layer all SVGs as same-size planes at z=0
+    Promise.all(svgStrings.map(svg => loadTexture(svg))).then(textures => {
+        textures.forEach((texture) => {
+            const geometry = new THREE.PlaneGeometry(2, 2); // all same size
+            const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
+            const plane = new THREE.Mesh(geometry, material);
+            plane.position.set(0, 0, 0); // all at z=0
+            scene.add(plane);
+        });
+    });
+
+    // Animate
+    function animate() {
+        requestAnimationFrame(animate);
+        controls.update();
+        renderer.render(scene, camera);
+    }
+    animate();
+}
 }
 
 /**

@@ -9,7 +9,7 @@ html, body {
     height: 100%; 
     overflow: hidden; 
     font-family: Inter, Arial, sans-serif; 
-    background: #0b0f1f; 
+
     color: #e8ebf3; 
 }
 
@@ -23,8 +23,6 @@ body {
     top: 16px; 
     left: 16px; 
     z-index: 10; 
-    background: rgba(4, 9, 20, 0.85); 
-    border: 1px solid #2f5ba3; 
     border-radius: 8px; 
     padding: 12px 14px; 
     width: 300px; 
@@ -65,7 +63,7 @@ body {
 }
 
 .driver-btn:active { 
-    background: #364f88; 
+    background: #dfdfdf; 
 }
 
 #status { 
@@ -84,8 +82,6 @@ body {
     left: 340px;
     right: 16px;
     bottom: 16px;
-    background: rgba(4, 9, 20, 0.85);
-    border: 1px solid #2f5ba3;
     border-radius: 8px;
     padding: 14px;
     backdrop-filter: blur(3px);
@@ -110,7 +106,7 @@ body {
     font-weight: 600;
     color: #b3ccff;
     margin-bottom: 12px;
-    border-bottom: 1px solid #2f5ba3;
+    border-bottom: 1px solid #000000;
     padding-bottom: 8px;
 }
 
@@ -142,9 +138,16 @@ body {
     margin-bottom: 8px;
 }
 
+.hover-info {
+    font-size: 0.9rem;
+    margin-bottom: 8px;
+    color: #a4d8ff;
+    padding: 6px;
+    border: 1px solid rgba(84, 171, 255, 0.5);
+    border-radius: 6px;
+    background: rgba(1, 7, 17, 0.8);
+}
 .race-item {
-    background: rgba(18, 28, 47, 0.6);
-    border-left: 3px solid #5a8fd9;
     padding: 8px;
     margin-bottom: 6px;
     border-radius: 4px;
@@ -193,9 +196,9 @@ body {
     left: 0;
 }
 
-.position-svg svg, .race-svg svg {
-    width: 100%;
-    height: 100%;
+.race-item .race-svg svg {
+    width: 200px;
+    height: 300px;
 }
 
 .point-dot {
@@ -210,7 +213,7 @@ body {
 }
 
 .point-dot.empty {
-    background-color: #444;
+    background-color: #bfbfbf;
 }
 
 .point-more {
