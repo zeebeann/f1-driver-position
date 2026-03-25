@@ -325,7 +325,7 @@ async function loadSVG(filename) {
  * Render position as colored SVG digit
  */
 async function renderPositionAsDigits(position, color = '#ff6b6b') {
-    if (position > 3) return '';
+    if (position > 6) return '';
     const svg = await loadSVG(`${position}.svg`);
     // Use driver color at 50% opacity
     const coloredSVG = svg.replace(/<circle([^>]*)fill="#484848"([^>]*)\/>/g,
@@ -337,7 +337,7 @@ async function renderPositionAsDigits(position, color = '#ff6b6b') {
  * Create colored SVG for race points
  */
 async function renderRaceGrid(points, position, color = '#00ff9f') {
-    if (position > 3) return '';
+    if (position > 6) return '';
     let svg = await loadSVG(`${position}.svg`);
     // Randomly select which circles are colored for points
     // Find all <circle ... fill="#484848" ... />
