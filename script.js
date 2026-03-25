@@ -8,6 +8,39 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 const API_BASE = 'https://f1api.dev/api';
 const SEASON = 2026;
 
+const DRIVER_COLORS = {
+    'russell':          '#00d2be',
+    'antonelli':        '#00d2be',
+    'kimi antonelli':   '#00d2be',
+    'andrea antonelli': '#00d2be',
+    'kimi':             '#00d2be',
+    'leclerc':    '#e8002d',
+    'hamilton':   '#e8002d',
+    'norris':     '#ff8000',
+    'piastri':    '#ff8000',
+    'ocon':       '#ff6b6b',
+    'bearman':    '#ff6b6b',
+    'verstappen': '#1e1e7e',
+    'hadjar':     '#1e1e7e',
+    'lawson':     '#4d7cff',
+    'lindblad':   '#4d7cff',
+    'gasly':      '#9fc4e8',
+    'collapinto': '#9fc4e8',
+    'hulkenberg': '#6b0000',
+    'bortoleto':  '#6b0000',
+    'sainz':      '#005aff',
+    'albon':      '#005aff',
+    'bottas':     '#c8a951',
+    'perez':      '#c8a951',
+    'stroll':     '#006f3c',
+    'alonso':     '#006f3c',
+};
+
+function getDriverColor(driver) {
+    const surname = (driver.driver.surname || '').toLowerCase();
+    return DRIVER_COLORS[surname] || '#00ff9f';
+}
+
 let drivers = [];
 
 // ============================================================================
@@ -92,17 +125,13 @@ function populateDriverSelect() {
         driverBtn.addEventListener('click', () => selectDriver(driver.driverId));
         list.appendChild(driverBtn);
     });
-    
-    if (drivers.length > 0) {
-        updateStatus(`${drivers.length} drivers loaded`);
-    }
 }
 
 /**
  * Update UI status message
  */
 function updateStatus(message) {
-    document.getElementById('status').textContent = message;
+    // no-op: status removed
 }
 
 /**
@@ -112,15 +141,32 @@ async function selectDriver(driverId) {
     const driver = drivers.find(d => d.driverId === driverId);
     
     if (driver) {
+        const driverColor = getDriverColor(driver);
+
+        // Highlight selected button
+        document.querySelectorAll('.driver-btn').forEach(btn => {
+            btn.classList.remove('selected');
+            btn.style.background = '';
+            btn.style.borderColor = '';
+            btn.style.color = '';
+        });
+        const selectedBtn = document.querySelector(`.driver-btn[data-driver-id="${driverId}"]`);
+        if (selectedBtn) {
+            selectedBtn.classList.add('selected');
+            selectedBtn.style.background = driverColor;
+            selectedBtn.style.borderColor = driverColor;
+            selectedBtn.style.color = '#fff';
+        }
+
         updateStatus(`Loading race data for ${driver.driver.name} ${driver.driver.surname}...`);
         const racePoints = await fetchDriverRacePoints(driverId);
         const detailsContent = document.getElementById('detailsContent');
-        detailsContent.innerHTML = '<canvas id="threeCanvas" width="900" height="800" style="display:block;margin:auto;"></canvas><div id="svgTooltip" style="position:fixed;display:none;background:#fff;border:1px solid #000;padding:6px 10px;font-size:12px;font-family:monospace;pointer-events:none;z-index:100;"></div>';
+        detailsContent.innerHTML = `<div id="detailsTitle">${driver.driver.name} ${driver.driver.surname}</div><canvas id="threeCanvas" width="900" height="800" style="display:block;margin:auto;"></canvas><div id="svgTooltip" style="position:fixed;display:none;background:#fff;color:#000;border:1px solid #000;padding:6px 10px;font-size:12px;font-family:monospace;pointer-events:none;z-index:100;"></div>`;
 
         // Prepare SVGs for 3D layering
-        const positionGrid = await renderPositionAsDigits(driver.position);
+        const positionGrid = await renderPositionAsDigits(driver.position, driverColor);
         const raceGrids = await Promise.all(racePoints.map(async (race) => {
-            return await renderRaceGrid(race.points, driver.position);
+            return await renderRaceGrid(race.points, driver.position, driverColor);
         }));
         // Extract SVG markup only
         const extractSVG = html => {
@@ -278,17 +324,19 @@ async function loadSVG(filename) {
 /**
  * Render position as colored SVG digit
  */
-async function renderPositionAsDigits(position) {
+async function renderPositionAsDigits(position, color = '#ff6b6b') {
     if (position > 3) return '';
     const svg = await loadSVG(`${position}.svg`);
-    const coloredSVG = svg.replace(/fill="#484848"/g, 'fill="#ff6b6b"');
+    // Use driver color at 50% opacity
+    const coloredSVG = svg.replace(/<circle([^>]*)fill="#484848"([^>]*)\/>/g,
+        (_, pre, post) => `<circle${pre}fill="${color}" fill-opacity="0.5"${post}/>`);
     return `<div class="position-svg">${coloredSVG}</div>`;
 }
 
 /**
  * Create colored SVG for race points
  */
-async function renderRaceGrid(points, position) {
+async function renderRaceGrid(points, position, color = '#00ff9f') {
     if (position > 3) return '';
     let svg = await loadSVG(`${position}.svg`);
     // Randomly select which circles are colored for points
@@ -311,7 +359,7 @@ async function renderRaceGrid(points, position) {
     svg = svg.replace(circleRegex, (full, pre, post, offset) => {
         if (coloredSet.has(replaced)) {
             replaced++;
-            return `<circle${pre}fill="#00ff9f"${post}/>`;
+            return `<circle${pre}fill="${color}"${post}/>`;
         } else {
             replaced++;
             // Shrink non-coloured circles slightly
