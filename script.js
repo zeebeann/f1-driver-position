@@ -114,28 +114,30 @@ async function selectDriver(driverId) {
         
         // Build the details panel
         const detailsContent = document.getElementById('detailsContent');
-        detailsContent.innerHTML = `
-            <div class="details-header">${driver.driver.name} ${driver.driver.surname}</div>
-            
-            <div class="details-info">
-                <div class="details-label">Championship Position</div>
-                <div class="details-value">#${driver.position}</div>
+        const raceGrids = await Promise.all(racePoints.map(async (race, index) => {
+            const grid = await renderRaceGrid(race.points, driver.position);
+            return `<div class="race-grid" style="z-index: ${index + 1};">${grid}</div>`;
+        }));
+        const positionGrid = await renderPositionAsDigits(driver.position);
+        const raceItems = await Promise.all(racePoints.map(async (race) => {
+            const svg = await renderRaceGrid(race.points, driver.position);
+            return `
+            <div class="race-item">
+                ${svg}
+                <div>Position: ${race.position}</div>
+                <div class="race-points">Points: ${renderPointsDots(race.points)} (${race.points})</div>
             </div>
-            
-            <div class="details-info">
-                <div class="details-label">Total Points</div>
-                <div class="details-value">${driver.points}</div>
+            `;
+        }));
+        detailsContent.innerHTML = `
+            <div class="grid-container">
+                ${raceGrids.join('')}
+                <div class="position-grid" style="z-index: ${racePoints.length + 1};">${positionGrid}</div>
             </div>
             
             <div class="races-list">
                 <div class="races-title">Race Results (${racePoints.length} races)</div>
-                ${racePoints.map(race => `
-                    <div class="race-item">
-                        <div class="race-round">Round ${race.round}: ${race.raceName}</div>
-                        <div>Position: ${race.position}</div>
-                        <div class="race-points">Points: +${race.points}</div>
-                    </div>
-                `).join('')}
+                ${raceItems.join('')}
             </div>
         `;
         
@@ -149,6 +151,57 @@ async function selectDriver(driverId) {
             races: racePoints
         });
     }
+}
+
+/**
+ * Load SVG file as text
+ */
+async function loadSVG(filename) {
+    const response = await fetch(`digits/${filename}`);
+    if (!response.ok) throw new Error(`Failed to load ${filename}`);
+    return await response.text();
+}
+
+/**
+ * Render position as colored SVG digit
+ */
+async function renderPositionAsDigits(position) {
+    if (position > 3) return '';
+    const svg = await loadSVG(`${position}.svg`);
+    const coloredSVG = svg.replace(/fill="#484848"/g, 'fill="#ff6b6b"');
+    return `<div class="position-svg">${coloredSVG}</div>`;
+}
+
+/**
+ * Create colored SVG for race points
+ */
+async function renderRaceGrid(points, position) {
+    if (position > 3) return '';
+    const svg = await loadSVG(`${position}.svg`);
+    let count = 0;
+    const coloredSVG = svg.replace(/fill="#484848"/g, (match) => {
+        if (count < points) {
+            count++;
+            return 'fill="#00ff9f"'; // green for points
+        } else {
+            return match;
+        }
+    });
+    return `<div class="race-svg">${coloredSVG}</div>`;
+}
+
+/**
+ * Render points as a series of dots, 1 per point
+ */
+function renderPointsDots(points) {
+    const count = Math.max(0, Math.floor(points));
+    if (count === 0) {
+        return '<span class="point-dot empty"></span>';
+    }
+    const maxDots = 25;
+    const dots = Array.from({ length: Math.min(count, maxDots) }, () => '<span class="point-dot"></span>').join('');
+    const suffix = count > maxDots ? ` <span class="point-more">+${count - maxDots}</span>` : '';
+    return dots + suffix;
 }
 
 /**

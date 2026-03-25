@@ -81,9 +81,9 @@ body {
 #details {
     position: absolute;
     top: 16px;
+    left: 340px;
     right: 16px;
-    width: 450px;
-    max-height: 80vh;
+    bottom: 16px;
     background: rgba(4, 9, 20, 0.85);
     border: 1px solid #2f5ba3;
     border-radius: 8px;
@@ -91,6 +91,10 @@ body {
     backdrop-filter: blur(3px);
     overflow-y: auto;
     z-index: 10;
+}
+
+#ui {
+    width: 320px;
 }
 
 #detailsContent {
@@ -155,4 +159,62 @@ body {
 .race-points {
     color: #00ff9f;
     font-weight: 600;
+}
+
+.point-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    margin-right: 2px;
+    background-color: #00ff9f;
+    border-radius: 50%;
+}
+
+.point-dot.empty {
+    background-color: #444;
+}
+
+.point-more {
+    font-size: 0.8rem;
+    color: #a0d6a8;
+    margin-left: 4px;
+}
+
+.grid-container {
+    position: relative;
+    width: 40px;
+    height: 60px;
+    margin-bottom: 12px;
+}
+
+.race-grid, .position-grid {
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+
+.position-svg svg, .race-svg svg {
+    width: 100%;
+    height: 100%;
+}
+
+.point-dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    margin-right: 4px;
+    background-color: #00ff9f;
+    border-radius: 50%;
+    vertical-align: middle;
+    line-height: 0;
+}
+
+.point-dot.empty {
+    background-color: #444;
+}
+
+.point-more {
+    font-size: 0.8rem;
+    color: #a0d6a8;
+    margin-left: 4px;
 }
