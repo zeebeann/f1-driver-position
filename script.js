@@ -115,7 +115,7 @@ async function selectDriver(driverId) {
         updateStatus(`Loading race data for ${driver.driver.name} ${driver.driver.surname}...`);
         const racePoints = await fetchDriverRacePoints(driverId);
         const detailsContent = document.getElementById('detailsContent');
-        detailsContent.innerHTML = '<canvas id="threeCanvas" width="900" height="800" style="display:block;margin:auto;"></canvas>';
+        detailsContent.innerHTML = '<canvas id="threeCanvas" width="900" height="800" style="display:block;margin:auto;"></canvas><div id="svgTooltip" style="position:fixed;display:none;background:#fff;border:1px solid #000;padding:6px 10px;font-size:12px;font-family:monospace;pointer-events:none;z-index:100;"></div>';
 
         // Prepare SVGs for 3D layering
         const positionGrid = await renderPositionAsDigits(driver.position);
@@ -128,7 +128,16 @@ async function selectDriver(driverId) {
             return match ? match[0] : '';
         };
         const allSvgs = [extractSVG(positionGrid), ...raceGrids.map(extractSVG)];
-        initThreeJS(allSvgs);
+        const metadata = [
+            { label: 'Championship Position', value: `P${driver.position}` },
+            ...racePoints.map(race => ({
+                label: race.raceName,
+                round: race.round,
+                racePosition: race.position,
+                points: race.points
+            }))
+        ];
+        initThreeJS(allSvgs, metadata);
 
         detailsContent.classList.add('active');
         updateStatus(`${driver.driver.name} ${driver.driver.surname} - Races: ${racePoints.length}`);
@@ -140,7 +149,7 @@ async function selectDriver(driverId) {
         });
     }
 // --- 3D SVG Layering with OrbitControls ---
-function initThreeJS(svgStrings) {
+function initThreeJS(svgStrings, metadata = []) {
     const canvas = document.getElementById('threeCanvas');
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(75, canvas.width / canvas.height, 0.1, 1000);
@@ -167,20 +176,20 @@ function initThreeJS(svgStrings) {
     // Layer all SVGs as planes, separated along z, and fix aspect ratio
     Promise.all(svgStrings.map(svg => loadTexture(svg))).then((textures) => {
         const numPlanes = textures.length;
-        const zSpacing = 0.35;
-        // Helper to add a border to a plane
+        const zSpacing = 0.45;
+        // Helper to add a thin border outline to a plane
         function addBorder(plane, width, height) {
-            const borderGeom = new THREE.PlaneGeometry(width + 0.80, height + 0.50);
-            const borderMat = new THREE.MeshBasicMaterial({ color: 0x111111, transparent: true, opacity: 0.1, side: THREE.DoubleSide });
-            const border = new THREE.Mesh(borderGeom, borderMat);
+            const edgeGeom = new THREE.EdgesGeometry(new THREE.PlaneGeometry(width + 0.80, height + 0.40));
+            const edgeMat = new THREE.LineBasicMaterial({ color: 0x000000 });
+            const border = new THREE.LineSegments(edgeGeom, edgeMat);
             border.position.copy(plane.position);
-            border.position.z -= 0.001; // ensure border is just behind
+            border.position.z += 0.001; // just in front to avoid z-fighting
             scene.add(border);
         }
-        // Races: index 1..N, Position: index 0
-        for (let i = 1; i < numPlanes; i++) {
+        const hoverablePlanes = [];
+        function makePlane(index, z) {
             let aspect = 1;
-            const svg = svgStrings[i];
+            const svg = svgStrings[index];
             const viewBoxMatch = svg.match(/viewBox=["'](\d+)[ ,]+(\d+)[ ,]+(\d+)[ ,]+(\d+)["']/);
             if (viewBoxMatch) {
                 const w = parseFloat(viewBoxMatch[3]);
@@ -190,30 +199,61 @@ function initThreeJS(svgStrings) {
             const HEIGHT = 2.0;
             const WIDTH = HEIGHT * aspect;
             const geometry = new THREE.PlaneGeometry(WIDTH, HEIGHT);
-            const material = new THREE.MeshBasicMaterial({ map: textures[i], transparent: true });
+            const material = new THREE.MeshBasicMaterial({ map: textures[index], transparent: true });
             const plane = new THREE.Mesh(geometry, material);
-            const z = -(i * zSpacing);
             plane.position.set(0, 0, z);
+            plane.userData.tooltipData = metadata[index] || null;
             scene.add(plane);
             addBorder(plane, WIDTH, HEIGHT);
+            hoverablePlanes.push(plane);
         }
-        // Position SVG (index 0) at the front (z=0)
-        let aspect = 1;
-        const svg = svgStrings[0];
-        const viewBoxMatch = svg.match(/viewBox=["'](\d+)[ ,]+(\d+)[ ,]+(\d+)[ ,]+(\d+)["']/);
-        if (viewBoxMatch) {
-            const w = parseFloat(viewBoxMatch[3]);
-            const h = parseFloat(viewBoxMatch[4]);
-            if (w > 0 && h > 0) aspect = w / h;
+        // Races: index 1..N (behind)
+        for (let i = 1; i < numPlanes; i++) {
+            makePlane(i, -(i * zSpacing));
         }
-        const HEIGHT = 2.0;
-        const WIDTH = HEIGHT * aspect;
-        const geometry = new THREE.PlaneGeometry(WIDTH, HEIGHT);
-        const material = new THREE.MeshBasicMaterial({ map: textures[0], transparent: true });
-        const plane = new THREE.Mesh(geometry, material);
-        plane.position.set(0, 0, 0);
-        scene.add(plane);
-        addBorder(plane, WIDTH, HEIGHT);
+        // Position SVG (index 0) at the front
+        makePlane(0, 0);
+
+        // Tooltip raycasting
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+        const tooltip = document.getElementById('svgTooltip');
+        canvas.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+            mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+            raycaster.setFromCamera(mouse, camera);
+            const hits = raycaster.intersectObjects(hoverablePlanes);
+            if (hits.length > 0) {
+                const data = hits[0].object.userData.tooltipData;
+                if (data) {
+                    let html;
+                    if (data.round !== undefined) {
+                        html = `<strong>Round ${data.round} — ${data.label}</strong><br>Finish: P${data.racePosition} &nbsp;|&nbsp; Points: ${data.points}`;
+                    } else {
+                        html = `<strong>${data.label}</strong><br>${data.value}`;
+                    }
+                    tooltip.innerHTML = html;
+                    tooltip.style.display = 'block';
+                    tooltip.style.left = '0px';
+                    tooltip.style.top = '0px';
+                    const tw = tooltip.offsetWidth;
+                    const th = tooltip.offsetHeight;
+                    // Flip to left of cursor if it would overflow the right edge (with 60px early buffer)
+                    const tx = (e.clientX + 6 + tw + 60 > window.innerWidth)
+                        ? e.clientX - tw - 6
+                        : e.clientX + 6;
+                    const ty = Math.min(e.clientY + 6, window.innerHeight - th - 8);
+                    tooltip.style.left = tx + 'px';
+                    tooltip.style.top = ty + 'px';
+                } else {
+                    tooltip.style.display = 'none';
+                }
+            } else {
+                tooltip.style.display = 'none';
+            }
+        });
+        canvas.addEventListener('mouseleave', () => { tooltip.style.display = 'none'; });
     });
 
     // Animate
@@ -274,7 +314,9 @@ async function renderRaceGrid(points, position) {
             return `<circle${pre}fill="#00ff9f"${post}/>`;
         } else {
             replaced++;
-            return `<circle${pre}fill="#484848"${post}/>`;
+            // Shrink non-coloured circles slightly
+            const shrunk = (pre + post).replace(/\br="13"/, 'r="5"');
+            return `<circle${shrunk}fill="#484848"/>`;
         }
     });
     return `<div class="race-svg">${svg}</div>`;
