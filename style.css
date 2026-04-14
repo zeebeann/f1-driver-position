@@ -37,11 +37,54 @@ body {
     color: #000; 
 }
 
+#driverListModes {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    margin-bottom: 10px;
+}
+
+.list-mode-btn {
+    padding: 6px 8px;
+    border: 1px solid #000;
+    background: #fff;
+    color: #000;
+    cursor: pointer;
+    font-size: 0.78rem;
+    font-family: monospace;
+}
+
+.list-mode-btn:hover {
+    background: #f0f0f0;
+}
+
+.list-mode-btn.active {
+    background: #000;
+    color: #fff;
+}
+
 #driverList { 
     display: grid; 
     grid-template-columns: 1fr; 
     gap: 6px; 
     margin-bottom: 12px; 
+}
+
+.team-header {
+    margin-top: 8px;
+    margin-bottom: 2px;
+    padding-top: 6px;
+    border-top: 1px solid #000;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+}
+
+.team-header:first-child {
+    margin-top: 0;
+    padding-top: 0;
+    border-top: none;
 }
 
 .driver-btn { 
@@ -102,6 +145,25 @@ body {
 
 #detailsContent.active {
     display: block;
+}
+
+#sceneShell {
+    position: relative;
+    width: fit-content;
+    margin: 0 auto;
+}
+
+#sceneLoading {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.92);
+    border: 1px solid #000;
+    font-size: 0.95rem;
+    color: #000;
+    letter-spacing: 0.02em;
 }
 
 .details-header {

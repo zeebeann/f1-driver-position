@@ -26,12 +26,16 @@ const DRIVER_COLORS = {
     'lindblad':   '#4d7cff',
     'gasly':      '#9fc4e8',
     'collapinto': '#9fc4e8',
+    'colapinto':  '#9fc4e8',
     'hulkenberg': '#6b0000',
     'bortoleto':  '#6b0000',
     'sainz':      '#005aff',
     'albon':      '#005aff',
     'bottas':     '#c8a951',
+    'valtteri bottas': '#c8a951',
     'perez':      '#c8a951',
+    'pérez':      '#c8a951',
+    'sergio perez': '#c8a951',
     'stroll':     '#006f3c',
     'alonso':     '#006f3c',
 };
@@ -42,6 +46,152 @@ function getDriverColor(driver) {
 }
 
 let drivers = [];
+let selectedDriverId = null;
+let driverListMode = 'championship';
+
+const DRIVER_TEAM_BY_SURNAME = {
+    'verstappen': 'Red Bull',
+    'hadjar': 'Red Bull',
+    'russell': 'Mercedes',
+    'antonelli': 'Mercedes',
+    'kimi antonelli': 'Mercedes',
+    'andrea antonelli': 'Mercedes',
+    'kimi': 'Mercedes',
+    'leclerc': 'Ferrari',
+    'hamilton': 'Ferrari',
+    'norris': 'McLaren',
+    'piastri': 'McLaren',
+    'ocon': 'Haas',
+    'bearman': 'Haas',
+    'lawson': 'Racing Bulls',
+    'lindblad': 'Racing Bulls',
+    'gasly': 'Alpine',
+    'collapinto': 'Alpine',
+    'colapinto': 'Alpine',
+    'hulkenberg': 'Sauber',
+    'bortoleto': 'Sauber',
+    'sainz': 'Williams',
+    'albon': 'Williams',
+    'bottas': 'Cadillac',
+    'valtteri bottas': 'Cadillac',
+    'perez': 'Cadillac',
+    'pérez': 'Cadillac',
+    'sergio perez': 'Cadillac',
+    'stroll': 'Aston Martin',
+    'alonso': 'Aston Martin',
+};
+
+const TEAM_DISPLAY_ORDER = [
+    'Red Bull',
+    'Mercedes',
+    'Ferrari',
+    'McLaren',
+    'Haas',
+    'Racing Bulls',
+    'Alpine',
+    'Sauber',
+    'Williams',
+    'Cadillac',
+    'Aston Martin',
+];
+
+function getDriverTeamName(driver) {
+    const surname = (driver.driver.surname || '').toLowerCase();
+    return DRIVER_TEAM_BY_SURNAME[surname] || 'Other';
+}
+
+function applySelectedButtonStyle(driverBtn, driverColor) {
+    driverBtn.classList.add('selected');
+    driverBtn.style.background = driverColor;
+    driverBtn.style.borderColor = driverColor;
+    driverBtn.style.color = '#fff';
+}
+
+function clearSelectedButtonStyle(driverBtn) {
+    driverBtn.classList.remove('selected');
+    driverBtn.style.background = '';
+    driverBtn.style.borderColor = '';
+    driverBtn.style.color = '';
+}
+
+function hexToRgba(hex, alpha) {
+    const clean = (hex || '').replace('#', '');
+    const normalized = clean.length === 3
+        ? clean.split('').map((c) => c + c).join('')
+        : clean;
+    const num = parseInt(normalized, 16);
+    if (Number.isNaN(num)) return `rgba(0, 0, 0, ${alpha})`;
+    const r = (num >> 16) & 255;
+    const g = (num >> 8) & 255;
+    const b = num & 255;
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+function applyHoverButtonStyle(driverBtn, driverColor) {
+    if (driverBtn.classList.contains('selected')) return;
+    driverBtn.style.background = hexToRgba(driverColor, 0.18);
+    driverBtn.style.borderColor = driverColor;
+}
+
+function clearHoverButtonStyle(driverBtn) {
+    if (driverBtn.classList.contains('selected')) return;
+    driverBtn.style.background = '';
+    driverBtn.style.borderColor = '';
+}
+
+function updateListModeButtons() {
+    const championshipBtn = document.getElementById('modeChampionship');
+    const teamsBtn = document.getElementById('modeTeams');
+    if (!championshipBtn || !teamsBtn) return;
+    championshipBtn.classList.toggle('active', driverListMode === 'championship');
+    teamsBtn.classList.toggle('active', driverListMode === 'teams');
+}
+
+function createDriverButton(driver) {
+    const driverBtn = document.createElement('button');
+    const driverColor = getDriverColor(driver);
+    driverBtn.className = 'driver-btn';
+    driverBtn.dataset.driverId = driver.driverId;
+    driverBtn.textContent = `${driver.driver.name} ${driver.driver.surname}`;
+    if (String(selectedDriverId) === String(driver.driverId)) {
+        applySelectedButtonStyle(driverBtn, driverColor);
+    }
+    driverBtn.addEventListener('mouseenter', () => applyHoverButtonStyle(driverBtn, driverColor));
+    driverBtn.addEventListener('mouseleave', () => clearHoverButtonStyle(driverBtn));
+    driverBtn.addEventListener('click', () => selectDriver(driver.driverId));
+    return driverBtn;
+}
+
+function renderChampionshipDriverList(list) {
+    drivers.forEach((driver) => {
+        list.appendChild(createDriverButton(driver));
+    });
+}
+
+function renderTeamsDriverList(list) {
+    const grouped = new Map();
+    drivers.forEach((driver) => {
+        const team = getDriverTeamName(driver);
+        if (!grouped.has(team)) grouped.set(team, []);
+        grouped.get(team).push(driver);
+    });
+
+    const orderedTeams = [
+        ...TEAM_DISPLAY_ORDER.filter((team) => grouped.has(team)),
+        ...Array.from(grouped.keys()).filter((team) => !TEAM_DISPLAY_ORDER.includes(team)).sort(),
+    ];
+
+    orderedTeams.forEach((team) => {
+        const teamHeader = document.createElement('div');
+        teamHeader.className = 'team-header';
+        teamHeader.textContent = team;
+        list.appendChild(teamHeader);
+
+        grouped.get(team).forEach((driver) => {
+            list.appendChild(createDriverButton(driver));
+        });
+    });
+}
 
 // ============================================================================
 // API FETCHING
@@ -116,15 +266,31 @@ async function fetchDriverRacePoints(driverId) {
 function populateDriverSelect() {
     const list = document.getElementById('driverList');
     list.innerHTML = '';
-    
-    drivers.forEach(driver => {
-        const driverBtn = document.createElement('button');
-        driverBtn.className = 'driver-btn';
-        driverBtn.dataset.driverId = driver.driverId;
-        driverBtn.textContent = `${driver.driver.name} ${driver.driver.surname}`;
-        driverBtn.addEventListener('click', () => selectDriver(driver.driverId));
-        list.appendChild(driverBtn);
+
+    updateListModeButtons();
+    if (driverListMode === 'teams') {
+        renderTeamsDriverList(list);
+    } else {
+        renderChampionshipDriverList(list);
+    }
+}
+
+function setupDriverListModeSwitcher() {
+    const championshipBtn = document.getElementById('modeChampionship');
+    const teamsBtn = document.getElementById('modeTeams');
+    if (!championshipBtn || !teamsBtn) return;
+
+    championshipBtn.addEventListener('click', () => {
+        driverListMode = 'championship';
+        populateDriverSelect();
     });
+
+    teamsBtn.addEventListener('click', () => {
+        driverListMode = 'teams';
+        populateDriverSelect();
+    });
+
+    updateListModeButtons();
 }
 
 /**
@@ -141,6 +307,7 @@ async function selectDriver(driverId) {
     const driver = drivers.find(d => d.driverId === driverId);
     
     if (driver) {
+        selectedDriverId = driverId;
         const driverColor = getDriverColor(driver);
 
         // Highlight selected button
@@ -158,10 +325,12 @@ async function selectDriver(driverId) {
             selectedBtn.style.color = '#fff';
         }
 
+        const detailsContent = document.getElementById('detailsContent');
+        detailsContent.classList.add('active');
+        detailsContent.innerHTML = `<div id="detailsTitle">${driver.driver.name} ${driver.driver.surname}</div><div id="sceneShell"><canvas id="threeCanvas" width="900" height="800" style="display:block;margin:auto;"></canvas><div id="sceneLoading">Loading driver position...</div></div><div id="svgTooltip" style="position:fixed;display:none;background:#fff;color:#000;border:1px solid #000;padding:6px 10px;font-size:12px;font-family:monospace;pointer-events:none;z-index:100;"></div>`;
+
         updateStatus(`Loading race data for ${driver.driver.name} ${driver.driver.surname}...`);
         const racePoints = await fetchDriverRacePoints(driverId);
-        const detailsContent = document.getElementById('detailsContent');
-        detailsContent.innerHTML = `<div id="detailsTitle">${driver.driver.name} ${driver.driver.surname}</div><canvas id="threeCanvas" width="900" height="800" style="display:block;margin:auto;"></canvas><div id="svgTooltip" style="position:fixed;display:none;background:#fff;color:#000;border:1px solid #000;padding:6px 10px;font-size:12px;font-family:monospace;pointer-events:none;z-index:100;"></div>`;
 
         // Prepare SVGs for 3D layering
         const positionGrid = await renderPositionAsDigits(driver.position, driverColor);
@@ -183,9 +352,15 @@ async function selectDriver(driverId) {
                 points: race.points
             }))
         ];
-        initThreeJS(allSvgs, metadata);
+        try {
+            await initThreeJS(allSvgs, metadata);
+        } catch (error) {
+            console.error('Error initializing 3D scene:', error);
+        } finally {
+            const sceneLoading = document.getElementById('sceneLoading');
+            if (sceneLoading) sceneLoading.style.display = 'none';
+        }
 
-        detailsContent.classList.add('active');
         updateStatus(`${driver.driver.name} ${driver.driver.surname} - Races: ${racePoints.length}`);
         console.log('Driver info:', {
             name: `${driver.driver.name} ${driver.driver.surname}`,
@@ -195,7 +370,7 @@ async function selectDriver(driverId) {
         });
     }
 // --- 3D SVG Layering with OrbitControls ---
-function initThreeJS(svgStrings, metadata = []) {
+async function initThreeJS(svgStrings, metadata = []) {
     const canvas = document.getElementById('threeCanvas');
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(75, canvas.width / canvas.height, 0.1, 1000);
@@ -208,19 +383,20 @@ function initThreeJS(svgStrings, metadata = []) {
     controls.enableDamping = true;
     controls.dampingFactor = 0.05;
     controls.enableZoom = true;
+    controls.zoomSpeed = 1.8;
     controls.enablePan = false;
 
     // Helper to load SVG as texture
     const loadTexture = (svgString) => {
-        const dataUrl = 'data:image/svg+xml;base64,' + btoa(svgString);
-        return new Promise((resolve) => {
+        const dataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgString);
+        return new Promise((resolve, reject) => {
             const loader = new THREE.TextureLoader();
-            loader.load(dataUrl, resolve);
+            loader.load(dataUrl, resolve, undefined, reject);
         });
     };
 
     // Layer all SVGs as planes, separated along z, and fix aspect ratio
-    Promise.all(svgStrings.map(svg => loadTexture(svg))).then((textures) => {
+    const textures = await Promise.all(svgStrings.map(svg => loadTexture(svg)));
         const numPlanes = textures.length;
         const zSpacing = 0.45;
         // Helper to add a thin border outline to a plane
@@ -300,7 +476,6 @@ function initThreeJS(svgStrings, metadata = []) {
             }
         });
         canvas.addEventListener('mouseleave', () => { tooltip.style.display = 'none'; });
-    });
 
     // Animate
     function animate() {
@@ -325,8 +500,9 @@ async function loadSVG(filename) {
  * Render position as colored SVG digit
  */
 async function renderPositionAsDigits(position, color = '#ff6b6b') {
-    if (position > 6) return '';
-    const svg = await loadSVG(`${position}.svg`);
+    const numericPosition = Number(position);
+    if (!Number.isFinite(numericPosition) || numericPosition < 1 || numericPosition > 22) return '';
+    const svg = await loadSVG(`${numericPosition}.svg`);
     // Use driver color at 50% opacity
     const coloredSVG = svg.replace(/<circle([^>]*)fill="#484848"([^>]*)\/>/g,
         (_, pre, post) => `<circle${pre}fill="${color}" fill-opacity="0.5"${post}/>`);
@@ -337,8 +513,9 @@ async function renderPositionAsDigits(position, color = '#ff6b6b') {
  * Create colored SVG for race points
  */
 async function renderRaceGrid(points, position, color = '#00ff9f') {
-    if (position > 6) return '';
-    let svg = await loadSVG(`${position}.svg`);
+    const numericPosition = Number(position);
+    if (!Number.isFinite(numericPosition) || numericPosition < 1 || numericPosition > 22) return '';
+    let svg = await loadSVG(`${numericPosition}.svg`);
     // Randomly select which circles are colored for points
     // Find all <circle ... fill="#484848" ... />
     const circleRegex = /<circle([^>]*)fill="#484848"([^>]*)\/>/g;
@@ -399,6 +576,7 @@ async function initialize() {
     try {
         updateStatus('Loading drivers...');
         await fetchStandings();
+        setupDriverListModeSwitcher();
         populateDriverSelect();
         setupUIEvents();
     } catch (error) {
