@@ -298,6 +298,48 @@ body {
     display: block;
 }
 
+#stackDepthControl {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+#stackDepthControl label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #222;
+}
+
+#stackOffsetInput {
+    width: 100%;
+    accent-color: #e8002d;
+    height: 14px;
+}
+
+#stackOffsetInput::-webkit-slider-runnable-track {
+    height: 3px;
+}
+
+#stackOffsetInput::-webkit-slider-thumb {
+    margin-top: -5px;
+}
+
+#stackOffsetInput::-moz-range-track {
+    height: 3px;
+}
+
+#stackOffsetValue {
+    min-width: 42px;
+    text-align: right;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #000;
+}
+
 #raceTabsContainer {
     display: flex;
     gap: 6px;
@@ -343,6 +385,64 @@ body {
     font-size: 0.95rem;
     color: #000;
     letter-spacing: 0.02em;
+}
+
+.tooltip-card {
+    position: fixed;
+    z-index: 100;
+    min-width: 180px;
+    max-width: 260px;
+    padding: 8px 10px;
+    border: 1px solid #000;
+    background: #fff;
+    color: #000;
+    font-family: 'Titillium Web', sans-serif;
+    pointer-events: none;
+    opacity: 0;
+    transform: translateY(4px);
+    transition: opacity 120ms ease, transform 120ms ease;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+}
+
+.tooltip-card.visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.tooltip-title {
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    line-height: 1.2;
+}
+
+.tooltip-subtitle {
+    margin-top: 2px;
+    margin-bottom: 8px;
+    font-size: 0.78rem;
+    line-height: 1.2;
+    color: #222;
+}
+
+.tooltip-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 14px;
+    font-size: 0.76rem;
+    border-top: 1px solid #ececec;
+    padding-top: 4px;
+    margin-top: 4px;
+}
+
+.tooltip-row span {
+    color: #444;
+}
+
+.tooltip-row strong {
+    font-size: 0.82rem;
+    font-weight: 700;
 }
 
 .details-header {

@@ -7,6 +7,10 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 const API_BASE = 'https://f1api.dev/api';
 const SEASON = 2026;
+const MAX_ROUNDS = 24;
+
+const svgCache = new Map();
+const raceRoundCache = new Map();
 
 const DRIVER_COLORS = {
     'russell':          '#00d2be',
@@ -218,42 +222,74 @@ async function fetchStandings() {
  * Fetch all race results for a specific driver in the season
  */
 async function fetchDriverRacePoints(driverId) {
-    const racePoints = [];
-    const maxRounds = 24; // up to 24 races
+    const roundResults = await Promise.all(
+        Array.from({ length: MAX_ROUNDS }, (_, index) => fetchRaceRound(index + 1))
+    );
 
-    for (let round = 1; round <= maxRounds; round++) {
-        try {
-            const response = await fetch(`${API_BASE}/${SEASON}/${round}/race`);
-            if (!response.ok) {
-                // no more races available (or invalid round)
-                break;
-            }
-            const data = await response.json();
-
-            // API returns root object with races field
-            const racesData = data.races;
-            if (!racesData || !Array.isArray(racesData.results)) {
-                break;
-            }
-
-            const raceName = racesData.raceName || `Round ${round}`;
-            const driverResult = racesData.results.find(r => r.driver && r.driver.driverId === driverId);
-
+    const racePoints = roundResults
+        .filter((race) => race && Array.isArray(race.results))
+        .map((race) => {
+            const driverResult = race.results.find((result) => result.driver && result.driver.driverId === driverId);
             if (driverResult) {
-                const points = Number(driverResult.points || 0);
-                const position = driverResult.position || '-';
-                racePoints.push({ round, raceName, points, position });
-            } else {
-                racePoints.push({ round, raceName, points: 0, position: 'DNS' });
+                return {
+                    round: race.round,
+                    raceName: race.raceName,
+                    points: Number(driverResult.points || 0),
+                    position: driverResult.position || '-'
+                };
             }
-        } catch (error) {
-            console.warn(`Cannot fetch round ${round}:`, error);
-            break;
-        }
-    }
+
+            return {
+                round: race.round,
+                raceName: race.raceName,
+                points: 0,
+                position: 'DNS'
+            };
+        });
 
     console.log(`Fetched ${racePoints.length} races for driver ${driverId}`, racePoints);
     return racePoints;
+}
+
+function fetchRaceRound(round) {
+    if (raceRoundCache.has(round)) {
+        return raceRoundCache.get(round);
+    }
+
+    const request = fetch(`${API_BASE}/${SEASON}/${round}/race`)
+        .then(async (response) => {
+            if (!response.ok) {
+                return null;
+            }
+
+            const data = await response.json();
+            const racesData = data.races;
+            if (!racesData || !Array.isArray(racesData.results)) {
+                return null;
+            }
+
+            return {
+                round,
+                raceName: racesData.raceName || `Round ${round}`,
+                results: racesData.results
+            };
+        })
+        .catch((error) => {
+            console.warn(`Cannot fetch round ${round}:`, error);
+            raceRoundCache.delete(round);
+            return null;
+        });
+
+    raceRoundCache.set(round, request);
+    return request;
+}
+
+function prefetchSeasonRaceData() {
+    Promise.all(
+        Array.from({ length: MAX_ROUNDS }, (_, index) => fetchRaceRound(index + 1))
+    ).catch((error) => {
+        console.warn('Background race prefetch failed:', error);
+    });
 }
 
 // ============================================================================
@@ -327,7 +363,7 @@ async function selectDriver(driverId) {
 
         const detailsContent = document.getElementById('detailsContent');
         detailsContent.classList.add('active');
-        detailsContent.innerHTML = `<div id=\"detailsTitle\">${driver.driver.name} ${driver.driver.surname}</div><div id=\"sceneShell\"><canvas id=\"threeCanvas\" width=\"900\" height=\"800\" style=\"display:block;margin:auto;\"></canvas><div id=\"sceneLoading\">Loading driver position...</div></div><div id=\"svgTooltip\" style=\"position:fixed;display:none;background:#fff;color:#000;border:1px solid #000;padding:6px 10px;font-size:12px;font-family:monospace;pointer-events:none;z-index:100;\"></div>`;
+        detailsContent.innerHTML = `<div id=\"detailsTitle\">${driver.driver.name} ${driver.driver.surname}</div><div id=\"stackDepthControl\"><label for=\"stackOffsetInput\">Depth</label><input id=\"stackOffsetInput\" type=\"range\" min=\"-3\" max=\"3\" step=\"0.01\" value=\"0\" /><span id=\"stackOffsetValue\">0.00</span></div><div id=\"sceneShell\"><canvas id=\"threeCanvas\" width=\"900\" height=\"800\" style=\"display:block;margin:auto;\"></canvas><div id=\"sceneLoading\">Loading driver position...</div></div><div id=\"svgTooltip\" class=\"tooltip-card\"></div>`;
 
         updateStatus(`Loading race data for ${driver.driver.name} ${driver.driver.surname}...`);
         const racePoints = await fetchDriverRacePoints(driverId);
@@ -344,7 +380,11 @@ async function selectDriver(driverId) {
         };
         const allSvgs = [extractSVG(positionGrid), ...raceGrids.map(extractSVG)];
         const metadata = [
-            { label: 'Championship Position', value: `P${driver.position}` },
+            {
+                label: 'Championship Position',
+                value: `P${driver.position}`,
+                totalPoints: driver.points
+            },
             ...racePoints.map(race => ({
                 label: race.raceName,
                 round: race.round,
@@ -373,7 +413,11 @@ async function selectDriver(driverId) {
 // --- 3D SVG Layering with OrbitControls ---
 async function initThreeJS(svgStrings, metadata = []) {
     const canvas = document.getElementById('threeCanvas');
+    const stackOffsetInput = document.getElementById('stackOffsetInput');
+    const stackOffsetValue = document.getElementById('stackOffsetValue');
     const scene = new THREE.Scene();
+    const modelRoot = new THREE.Group();
+    scene.add(modelRoot);
     const camera = new THREE.PerspectiveCamera(75, canvas.width / canvas.height, 0.1, 1000);
     const renderer = new THREE.WebGLRenderer({ canvas, alpha: true });
     renderer.setClearColor(0x000000, 0);
@@ -433,6 +477,39 @@ async function initThreeJS(svgStrings, metadata = []) {
             texture.magFilter = THREE.LinearFilter;
             texture.needsUpdate = true;
             return { texture, width: w, height: h };
+        }
+
+        function tooltipHtml(data) {
+            if (!data) return '';
+            if (data.round !== undefined) {
+                return `<div class="tooltip-title">Round ${data.round}</div><div class="tooltip-subtitle">${data.label}</div><div class="tooltip-row"><span>Finish</span><strong>P${data.racePosition}</strong></div><div class="tooltip-row"><span>Points</span><strong>${data.points}</strong></div>`;
+            }
+            if (data.totalPoints !== undefined) {
+                return `<div class="tooltip-title">${data.label}: ${data.value}</div><div class="tooltip-row"><span>Total Points</span><strong>${data.totalPoints}</strong></div>`;
+            }
+            return `<div class="tooltip-title">${data.label}: ${data.value}</div>`;
+        }
+
+        function showTooltipAtPointer(e, data) {
+            if (!tooltip || !data) return;
+            tooltip.innerHTML = tooltipHtml(data);
+            tooltip.classList.add('visible');
+            tooltip.style.left = '0px';
+            tooltip.style.top = '0px';
+
+            const tw = tooltip.offsetWidth;
+            const th = tooltip.offsetHeight;
+            const tx = (e.clientX + 10 + tw + 24 > window.innerWidth)
+                ? e.clientX - tw - 10
+                : e.clientX + 10;
+            const ty = Math.min(Math.max(10, e.clientY + 10), window.innerHeight - th - 10);
+            tooltip.style.left = tx + 'px';
+            tooltip.style.top = ty + 'px';
+        }
+
+        function hideTooltip() {
+            if (!tooltip) return;
+            tooltip.classList.remove('visible');
         }
 
         // Helper to add a thin border outline to a plane
@@ -501,7 +578,7 @@ async function initThreeJS(svgStrings, metadata = []) {
             layerGroup.add(border);
             layerGroup.add(tab);
             layerGroup.add(tabInverted);
-            scene.add(layerGroup);
+            modelRoot.add(layerGroup);
 
             const layerEntry = {
                 group: layerGroup,
@@ -533,7 +610,7 @@ async function initThreeJS(svgStrings, metadata = []) {
             hoverZone.position.set(tabX, tabY + 0.11, z + 0.02);
             hoverZone.userData.layerEntry = layerEntry;
             hoverZone.userData.tooltipData = metadata[index] || null;
-            scene.add(hoverZone);
+            modelRoot.add(hoverZone);
             layerEntry.hoverZone = hoverZone;
 
             layerEntries.push(layerEntry);
@@ -545,6 +622,32 @@ async function initThreeJS(svgStrings, metadata = []) {
         }
         // Position SVG (index 0) at the front
         makePlane(0, 0);
+
+        let stackOffset = 0;
+        const setStackOffset = (value) => {
+            const clamped = Math.max(-3, Math.min(3, value));
+            stackOffset = clamped;
+            modelRoot.position.z = clamped;
+            if (stackOffsetValue) stackOffsetValue.textContent = clamped.toFixed(2);
+        };
+
+        if (stackOffsetInput) {
+            stackOffsetInput.addEventListener('input', (e) => {
+                const value = parseFloat(e.target.value);
+                if (!Number.isNaN(value)) setStackOffset(value);
+            });
+            setStackOffset(parseFloat(stackOffsetInput.value || '0'));
+        }
+
+        // Shift + wheel nudges the full stack forward/backward.
+        canvas.addEventListener('wheel', (e) => {
+            if (!e.shiftKey) return;
+            e.preventDefault();
+            setStackOffset(stackOffset + (-e.deltaY * 0.0025));
+            if (stackOffsetInput) {
+                stackOffsetInput.value = stackOffset.toFixed(2);
+            }
+        }, { passive: false });
 
         // Hover tooltip only on 3D tabs (not on overlapped SVG planes)
         const raycaster = new THREE.Raycaster();
@@ -563,29 +666,13 @@ async function initThreeJS(svgStrings, metadata = []) {
                 for (const entry of layerEntries) {
                     entry.isHovered = entry === activeLayer;
                 }
-                if (data) {
-                    const html = data.round !== undefined
-                        ? `<strong>Round ${data.round} — ${data.label}</strong><br>Finish: P${data.racePosition} &nbsp;|&nbsp; Points: ${data.points}`
-                        : `<strong>${data.label}</strong><br>${data.value}`;
-                    tooltip.innerHTML = html;
-                    tooltip.style.display = 'block';
-                    tooltip.style.left = '0px';
-                    tooltip.style.top = '0px';
-                    const tw = tooltip.offsetWidth;
-                    const th = tooltip.offsetHeight;
-                    const tx = (e.clientX + 6 + tw + 60 > window.innerWidth)
-                        ? e.clientX - tw - 6
-                        : e.clientX + 6;
-                    const ty = Math.min(e.clientY + 6, window.innerHeight - th - 8);
-                    tooltip.style.left = tx + 'px';
-                    tooltip.style.top = ty + 'px';
-                }
+                if (data) showTooltipAtPointer(e, data);
             } else {
                 activeLayer = null;
                 for (const entry of layerEntries) {
                     entry.isHovered = false;
                 }
-                tooltip.style.display = 'none';
+                hideTooltip();
             }
         });
         canvas.addEventListener('mouseleave', () => {
@@ -593,7 +680,7 @@ async function initThreeJS(svgStrings, metadata = []) {
             for (const entry of layerEntries) {
                 entry.isHovered = false;
             }
-            tooltip.style.display = 'none';
+            hideTooltip();
         });
 
     // Animate
@@ -621,9 +708,22 @@ async function initThreeJS(svgStrings, metadata = []) {
  * Load SVG file as text
  */
 async function loadSVG(filename) {
-    const response = await fetch(`digits/${filename}`);
-    if (!response.ok) throw new Error(`Failed to load ${filename}`);
-    return await response.text();
+    if (svgCache.has(filename)) {
+        return svgCache.get(filename);
+    }
+
+    const request = fetch(`digits/${filename}`)
+        .then(async (response) => {
+            if (!response.ok) throw new Error(`Failed to load ${filename}`);
+            return response.text();
+        })
+        .catch((error) => {
+            svgCache.delete(filename);
+            throw error;
+        });
+
+    svgCache.set(filename, request);
+    return request;
 }
 
 /**
@@ -706,6 +806,7 @@ async function initialize() {
     try {
         updateStatus('Loading drivers...');
         await fetchStandings();
+        prefetchSeasonRaceData();
         setupDriverListModeSwitcher();
         populateDriverSelect();
         setupUIEvents();
