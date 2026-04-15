@@ -515,7 +515,7 @@ async function initThreeJS(svgStrings, metadata = []) {
         // Helper to add a thin border outline to a plane
         function addBorder(plane, width, height) {
             const edgeGeom = new THREE.EdgesGeometry(new THREE.PlaneGeometry(width + 0.80, height + 0.40));
-            const edgeMat = new THREE.LineBasicMaterial({ color: 0x000000 });
+            const edgeMat = new THREE.LineBasicMaterial({ color: 0xffffff });
             const border = new THREE.LineSegments(edgeGeom, edgeMat);
             border.position.copy(plane.position);
             border.position.z += 0.001; // just in front to avoid z-fighting
@@ -545,8 +545,9 @@ async function initThreeJS(svgStrings, metadata = []) {
             const tabText = index === 0
                 ? 'CH'
                 : `R${metadata[index]?.round ?? index}`;
-            const labelTextureData = createLabelTexture(tabText, false);
-            const labelTextureDataInverted = createLabelTexture(tabText, true);
+            // Start dark and animate to light on hover (reversed from previous behavior).
+            const labelTextureData = createLabelTexture(tabText, true);
+            const labelTextureDataInverted = createLabelTexture(tabText, false);
             const tabH = 0.17;
             const tabW = tabH * (labelTextureData.width / labelTextureData.height);
             const tabGeom = new THREE.PlaneGeometry(tabW, tabH);
@@ -690,7 +691,7 @@ async function initThreeJS(svgStrings, metadata = []) {
             const target = entry.isHovered ? 1 : 0;
             entry.hoverProgress += (target - entry.hoverProgress) * 0.16;
 
-            // Animation 1: invert tab colors by cross-fading normal/inverted plates.
+            // Animation 1: invert tab colors by cross-fading dark -> light on hover.
             entry.tabMat.opacity = 1 - entry.hoverProgress;
             entry.tabMatInverted.opacity = entry.hoverProgress;
 
@@ -771,7 +772,7 @@ async function renderRaceGrid(points, position, color = '#00ff9f') {
             replaced++;
             // Shrink non-coloured circles slightly
             const shrunk = (pre + post).replace(/\br="13"/, 'r="5"');
-            return `<circle${shrunk}fill="#484848"/>`;
+            return `<circle${shrunk}fill="#ececec"/>`;
         }
     });
     return `<div class="race-svg">${svg}</div>`;
