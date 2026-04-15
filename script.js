@@ -55,6 +55,14 @@ function normalizeHexColor(color) {
     return value.startsWith('#') ? value : `#${value}`;
 }
 
+function formatRaceFinish(position) {
+    const raw = String(position || '').trim().toUpperCase();
+    if (!raw) return '-';
+    if (raw === 'PNC' || raw === 'NC' || raw === 'N/C') return 'DNF';
+    if (/^\d+$/.test(raw)) return `P${raw}`;
+    return raw;
+}
+
 let drivers = [];
 let selectedDriverId = null;
 let driverListMode = 'championship';
@@ -160,9 +168,12 @@ function updateListModeButtons() {
 function createDriverButton(driver) {
     const driverBtn = document.createElement('button');
     const driverColor = getDriverColor(driver);
+    const positionText = Number.isFinite(Number(driver.position))
+        ? `${Number(driver.position)}.`
+        : '-.';
     driverBtn.className = 'driver-btn';
     driverBtn.dataset.driverId = driver.driverId;
-    driverBtn.textContent = `${driver.driver.name} ${driver.driver.surname}`;
+    driverBtn.textContent = `${positionText} ${driver.driver.name} ${driver.driver.surname}`;
     if (String(selectedDriverId) === String(driver.driverId)) {
         applySelectedButtonStyle(driverBtn, driverColor);
     }
@@ -488,7 +499,7 @@ async function initThreeJS(svgStrings, metadata = []) {
         function tooltipHtml(data) {
             if (!data) return '';
             if (data.round !== undefined) {
-                return `<div class="tooltip-title">Round ${data.round}</div><div class="tooltip-subtitle">${data.label}</div><div class="tooltip-row"><span>Finish</span><strong>P${data.racePosition}</strong></div><div class="tooltip-row"><span>Points</span><strong>${data.points}</strong></div>`;
+                return `<div class="tooltip-title">Round ${data.round}</div><div class="tooltip-subtitle">${data.label}</div><div class="tooltip-row"><span>Finish</span><strong>${formatRaceFinish(data.racePosition)}</strong></div><div class="tooltip-row"><span>Points</span><strong>${data.points}</strong></div>`;
             }
             if (data.totalPoints !== undefined) {
                 return `<div class="tooltip-title">${data.label}: ${data.value}</div><div class="tooltip-row"><span>Total Points</span><strong>${data.totalPoints}</strong></div>`;
@@ -818,6 +829,12 @@ async function initialize() {
         prefetchSeasonRaceData();
         setupDriverListModeSwitcher();
         populateDriverSelect();
+        if (!selectedDriverId && drivers.length > 0) {
+            const leader = drivers.find((driver) => Number(driver.position) === 1) || drivers[0];
+            if (leader && leader.driverId !== undefined) {
+                await selectDriver(leader.driverId);
+            }
+        }
         setupUIEvents();
     } catch (error) {
         console.error('Initialization error:', error);

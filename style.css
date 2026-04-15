@@ -302,10 +302,13 @@ body {
     font-size: 1rem;
     font-family: 'Titillium Web', sans-serif;
     font-weight: 700;
-    color: #111111;
-    padding-bottom: 10px;
-    margin-bottom: 12px;
-    border-bottom: 1px solid #efefef;
+    color: #ffffff;
+    background: #2c2c2c;
+    padding: 12px 14px 10px;
+    margin: -14px -14px 0;
+    border-bottom: 1px solid #4b4b4b;
+    border-top-left-radius: var(--f1-radius);
+    border-top-right-radius: var(--f1-radius);
 }
 
 #detailsContent {
@@ -321,7 +324,10 @@ body {
     grid-template-columns: auto 1fr auto;
     align-items: center;
     gap: 10px;
-    margin-bottom: 10px;
+    margin: 0 -14px 10px;
+    padding: 10px 14px 12px;
+    background: #2c2c2c;
+    border-bottom: 1px solid #4b4b4b;
 }
 
 #stackDepthControl label {
@@ -329,7 +335,7 @@ body {
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.04em;
-    color: #4a4a4a;
+    color: #cfcfcf;
 }
 
 #stackOffsetInput {
@@ -355,7 +361,7 @@ body {
     text-align: right;
     font-size: 0.75rem;
     font-weight: 700;
-    color: #111111;
+    color: #ffffff;
 }
 
 #raceTabsContainer {
