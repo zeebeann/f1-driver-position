@@ -6,6 +6,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>F1 Driver Position</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Titillium+Web:ital,wght@0,200;0,300;0,400;0,600;0,700;0,900;1,200;1,300;1,400;1,600;1,700&display=swap" rel="stylesheet">
     <script type="module" src="script.js"></script>
     <script type="importmap">
 {
@@ -19,6 +22,31 @@
 </head>
 
 <body>
+    <nav id="f1Nav">
+        <div id="f1NavInner">
+            <a id="f1Logo" href="#"><img src="f1 logo.png" alt="F1" /></a>
+            <ul id="f1NavLinks">
+                <li><a href="#" class="nav-active">76th Driver's Championship</a></li>
+                <li><a href="#">Schedule <span class="nav-arrow">&#8964;</span></a></li>
+                <li><a href="#">Results <span class="nav-arrow">&#8964;</span></a></li>
+                <li><a href="#">News <span class="nav-arrow">&#8964;</span></a></li>
+                <li><a href="#">Drivers <span class="nav-arrow">&#8964;</span></a></li>
+                <li><a href="#">Teams <span class="nav-arrow">&#8964;</span></a></li>
+                <li><a href="#">Fantasy &amp; Gaming <span class="nav-arrow">&#8964;</span></a></li>
+                <li><a href="#">F1 Members' Area</a></li>
+            </ul>
+        </div>
+    </nav>
+    <div id="legendPanel">
+        <h3>How to Use</h3>
+        <ul>
+            <li><strong>Select Driver:</strong> Click a driver name</li>
+            <li><strong>Rotate:</strong> Click and drag in 3D</li>
+            <li><strong>Zoom:</strong> Scroll wheel</li>
+            <li><strong>Pan:</strong> Right-click and drag</li>
+            <li><strong>Tooltip:</strong> Hover over colored dots</li>
+        </ul>
+    </div>
     <div id="ui">
         <h1>Formula 1 - 76th Driver's Championship</h1>
     <div id="driverListModes">

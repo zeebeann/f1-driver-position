@@ -327,7 +327,7 @@ async function selectDriver(driverId) {
 
         const detailsContent = document.getElementById('detailsContent');
         detailsContent.classList.add('active');
-        detailsContent.innerHTML = `<div id="detailsTitle">${driver.driver.name} ${driver.driver.surname}</div><div id="sceneShell"><canvas id="threeCanvas" width="900" height="800" style="display:block;margin:auto;"></canvas><div id="sceneLoading">Loading driver position...</div></div><div id="svgTooltip" style="position:fixed;display:none;background:#fff;color:#000;border:1px solid #000;padding:6px 10px;font-size:12px;font-family:monospace;pointer-events:none;z-index:100;"></div>`;
+        detailsContent.innerHTML = `<div id=\"detailsTitle\">${driver.driver.name} ${driver.driver.surname}</div><div id=\"sceneShell\"><canvas id=\"threeCanvas\" width=\"900\" height=\"800\" style=\"display:block;margin:auto;\"></canvas><div id=\"sceneLoading\">Loading driver position...</div></div><div id=\"svgTooltip\" style=\"position:fixed;display:none;background:#fff;color:#000;border:1px solid #000;padding:6px 10px;font-size:12px;font-family:monospace;pointer-events:none;z-index:100;\"></div>`;
 
         updateStatus(`Loading race data for ${driver.driver.name} ${driver.driver.surname}...`);
         const racePoints = await fetchDriverRacePoints(driverId);
@@ -352,6 +352,7 @@ async function selectDriver(driverId) {
                 points: race.points
             }))
         ];
+
         try {
             await initThreeJS(allSvgs, metadata);
         } catch (error) {
@@ -399,6 +400,41 @@ async function initThreeJS(svgStrings, metadata = []) {
     const textures = await Promise.all(svgStrings.map(svg => loadTexture(svg)));
         const numPlanes = textures.length;
         const zSpacing = 0.45;
+        const tooltip = document.getElementById('svgTooltip');
+
+        function createLabelTexture(text, inverted = false) {
+            const textureCanvas = document.createElement('canvas');
+            const ctx = textureCanvas.getContext('2d');
+            const fontSize = 36;
+            const fontFamily = 'Titillium Web, sans-serif';
+            ctx.font = `700 ${fontSize}px ${fontFamily}`;
+            const textMetrics = ctx.measureText(text);
+            const paddingX = 22;
+            const paddingY = 12;
+            const w = Math.ceil(textMetrics.width + paddingX * 2);
+            const h = Math.ceil(fontSize + paddingY * 2);
+            textureCanvas.width = w;
+            textureCanvas.height = h;
+
+            const drawCtx = textureCanvas.getContext('2d');
+            drawCtx.fillStyle = inverted ? '#000000' : '#ffffff';
+            drawCtx.fillRect(0, 0, w, h);
+            drawCtx.strokeStyle = inverted ? '#ffffff' : '#000000';
+            drawCtx.lineWidth = 3;
+            drawCtx.strokeRect(1.5, 1.5, w - 3, h - 3);
+            drawCtx.fillStyle = inverted ? '#ffffff' : '#000000';
+            drawCtx.font = `700 ${fontSize}px ${fontFamily}`;
+            drawCtx.textAlign = 'center';
+            drawCtx.textBaseline = 'middle';
+            drawCtx.fillText(text, w / 2, h / 2 + 1);
+
+            const texture = new THREE.CanvasTexture(textureCanvas);
+            texture.minFilter = THREE.LinearFilter;
+            texture.magFilter = THREE.LinearFilter;
+            texture.needsUpdate = true;
+            return { texture, width: w, height: h };
+        }
+
         // Helper to add a thin border outline to a plane
         function addBorder(plane, width, height) {
             const edgeGeom = new THREE.EdgesGeometry(new THREE.PlaneGeometry(width + 0.80, height + 0.40));
@@ -406,9 +442,10 @@ async function initThreeJS(svgStrings, metadata = []) {
             const border = new THREE.LineSegments(edgeGeom, edgeMat);
             border.position.copy(plane.position);
             border.position.z += 0.001; // just in front to avoid z-fighting
-            scene.add(border);
+            return border;
         }
-        const hoverablePlanes = [];
+        const hoverableTabs = [];
+        const layerEntries = [];
         function makePlane(index, z) {
             let aspect = 1;
             const svg = svgStrings[index];
@@ -423,11 +460,84 @@ async function initThreeJS(svgStrings, metadata = []) {
             const geometry = new THREE.PlaneGeometry(WIDTH, HEIGHT);
             const material = new THREE.MeshBasicMaterial({ map: textures[index], transparent: true });
             const plane = new THREE.Mesh(geometry, material);
-            plane.position.set(0, 0, z);
+            plane.position.set(0, 0, 0);
             plane.userData.tooltipData = metadata[index] || null;
-            scene.add(plane);
-            addBorder(plane, WIDTH, HEIGHT);
-            hoverablePlanes.push(plane);
+
+            const border = addBorder(plane, WIDTH, HEIGHT);
+
+            const tabText = index === 0
+                ? 'CH'
+                : `R${metadata[index]?.round ?? index}`;
+            const labelTextureData = createLabelTexture(tabText, false);
+            const labelTextureDataInverted = createLabelTexture(tabText, true);
+            const tabH = 0.17;
+            const tabW = tabH * (labelTextureData.width / labelTextureData.height);
+            const tabGeom = new THREE.PlaneGeometry(tabW, tabH);
+            const tabMat = new THREE.MeshBasicMaterial({
+                map: labelTextureData.texture,
+                transparent: true,
+                opacity: 1
+            });
+            const tabMatInverted = new THREE.MeshBasicMaterial({
+                map: labelTextureDataInverted.texture,
+                transparent: true,
+                opacity: 0
+            });
+            const tab = new THREE.Mesh(tabGeom, tabMat);
+            const tabInverted = new THREE.Mesh(tabGeom, tabMatInverted);
+
+            // Place tab so its bottom edge touches border top, aligned to the full left border edge.
+            const borderTopY = (HEIGHT + 0.40) / 2;
+            const borderLeftX = -((WIDTH + 0.80) / 2);
+            const tabX = borderLeftX + (tabW / 2);
+            const tabY = borderTopY + (tabH / 2);
+            tab.position.set(tabX, tabY, 0.01);
+            tabInverted.position.set(tabX, tabY, 0.011);
+            tab.userData.tooltipData = metadata[index] || null;
+
+            const layerGroup = new THREE.Group();
+            layerGroup.position.set(0, 0, z);
+            layerGroup.add(plane);
+            layerGroup.add(border);
+            layerGroup.add(tab);
+            layerGroup.add(tabInverted);
+            scene.add(layerGroup);
+
+            const layerEntry = {
+                group: layerGroup,
+                plane,
+                tab,
+                tabInverted,
+                tabMat,
+                tabMatInverted,
+                hoverZone: null,
+                hoverProgress: 0,
+                isHovered: false
+            };
+            tab.userData.layerEntry = layerEntry;
+            tabInverted.userData.layerEntry = layerEntry;
+            tab.userData.tooltipData = metadata[index] || null;
+            tabInverted.userData.tooltipData = metadata[index] || null;
+
+            // Static oversized hover zone: keeps hover stable while the visual layer animates upward.
+            const hoverZoneGeom = new THREE.PlaneGeometry(tabW + 0.24, tabH + 0.34);
+            const hoverZoneMat = new THREE.MeshBasicMaterial({
+                color: 0xffffff,
+                transparent: true,
+                opacity: 0,
+                depthWrite: false,
+                depthTest: false,
+                side: THREE.DoubleSide
+            });
+            const hoverZone = new THREE.Mesh(hoverZoneGeom, hoverZoneMat);
+            hoverZone.position.set(tabX, tabY + 0.11, z + 0.02);
+            hoverZone.userData.layerEntry = layerEntry;
+            hoverZone.userData.tooltipData = metadata[index] || null;
+            scene.add(hoverZone);
+            layerEntry.hoverZone = hoverZone;
+
+            layerEntries.push(layerEntry);
+            hoverableTabs.push(hoverZone);
         }
         // Races: index 1..N (behind)
         for (let i = 1; i < numPlanes; i++) {
@@ -436,50 +546,70 @@ async function initThreeJS(svgStrings, metadata = []) {
         // Position SVG (index 0) at the front
         makePlane(0, 0);
 
-        // Tooltip raycasting
+        // Hover tooltip only on 3D tabs (not on overlapped SVG planes)
         const raycaster = new THREE.Raycaster();
         const mouse = new THREE.Vector2();
-        const tooltip = document.getElementById('svgTooltip');
+        let activeLayer = null;
         canvas.addEventListener('mousemove', (e) => {
             const rect = canvas.getBoundingClientRect();
             mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
             mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
             raycaster.setFromCamera(mouse, camera);
-            const hits = raycaster.intersectObjects(hoverablePlanes);
+            const hits = raycaster.intersectObjects(hoverableTabs);
             if (hits.length > 0) {
-                const data = hits[0].object.userData.tooltipData;
+                const hitObj = hits[0].object;
+                const data = hitObj.userData.tooltipData;
+                activeLayer = hitObj.userData.layerEntry || null;
+                for (const entry of layerEntries) {
+                    entry.isHovered = entry === activeLayer;
+                }
                 if (data) {
-                    let html;
-                    if (data.round !== undefined) {
-                        html = `<strong>Round ${data.round} — ${data.label}</strong><br>Finish: P${data.racePosition} &nbsp;|&nbsp; Points: ${data.points}`;
-                    } else {
-                        html = `<strong>${data.label}</strong><br>${data.value}`;
-                    }
+                    const html = data.round !== undefined
+                        ? `<strong>Round ${data.round} — ${data.label}</strong><br>Finish: P${data.racePosition} &nbsp;|&nbsp; Points: ${data.points}`
+                        : `<strong>${data.label}</strong><br>${data.value}`;
                     tooltip.innerHTML = html;
                     tooltip.style.display = 'block';
                     tooltip.style.left = '0px';
                     tooltip.style.top = '0px';
                     const tw = tooltip.offsetWidth;
                     const th = tooltip.offsetHeight;
-                    // Flip to left of cursor if it would overflow the right edge (with 60px early buffer)
                     const tx = (e.clientX + 6 + tw + 60 > window.innerWidth)
                         ? e.clientX - tw - 6
                         : e.clientX + 6;
                     const ty = Math.min(e.clientY + 6, window.innerHeight - th - 8);
                     tooltip.style.left = tx + 'px';
                     tooltip.style.top = ty + 'px';
-                } else {
-                    tooltip.style.display = 'none';
                 }
             } else {
+                activeLayer = null;
+                for (const entry of layerEntries) {
+                    entry.isHovered = false;
+                }
                 tooltip.style.display = 'none';
             }
         });
-        canvas.addEventListener('mouseleave', () => { tooltip.style.display = 'none'; });
+        canvas.addEventListener('mouseleave', () => {
+            activeLayer = null;
+            for (const entry of layerEntries) {
+                entry.isHovered = false;
+            }
+            tooltip.style.display = 'none';
+        });
 
     // Animate
     function animate() {
         requestAnimationFrame(animate);
+        for (const entry of layerEntries) {
+            const target = entry.isHovered ? 1 : 0;
+            entry.hoverProgress += (target - entry.hoverProgress) * 0.16;
+
+            // Animation 1: invert tab colors by cross-fading normal/inverted plates.
+            entry.tabMat.opacity = 1 - entry.hoverProgress;
+            entry.tabMatInverted.opacity = entry.hoverProgress;
+
+            // Animation 2: pull the entire layer upward like a page being lifted.
+            entry.group.position.y = 0.22 * entry.hoverProgress;
+        }
         controls.update();
         renderer.render(scene, camera);
     }
@@ -565,7 +695,7 @@ function renderPointsDots(points) {
  * Setup UI event listeners
  */
 function setupUIEvents() {
-    // Drivers are now clickable buttons
+    // UI events setup (legend panel is static)
 }
 
 // ============================================================================
