@@ -290,8 +290,8 @@ body {
     backdrop-filter: blur(3px);
     overflow-y: auto;
     z-index: 10;
-    background: linear-gradient(180deg, rgba(36, 36, 36, 0.95), rgba(28, 28, 28, 0.95));
-    border: 1px solid var(--f1-border);
+    background: #ffffff;
+    border: 1px solid #ffffff;
 }
 
 #ui {
@@ -302,10 +302,10 @@ body {
     font-size: 1rem;
     font-family: 'Titillium Web', sans-serif;
     font-weight: 700;
-    color: var(--f1-text);
+    color: #111111;
     padding-bottom: 10px;
     margin-bottom: 12px;
-    border-bottom: 1px solid var(--f1-border);
+    border-bottom: 1px solid #efefef;
 }
 
 #detailsContent {
@@ -329,7 +329,7 @@ body {
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.04em;
-    color: var(--f1-muted);
+    color: #4a4a4a;
 }
 
 #stackOffsetInput {
@@ -355,7 +355,7 @@ body {
     text-align: right;
     font-size: 0.75rem;
     font-weight: 700;
-    color: var(--f1-text);
+    color: #111111;
 }
 
 #raceTabsContainer {
@@ -399,10 +399,10 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    background: rgba(20, 20, 20, 0.92);
-    border: 1px solid var(--f1-border);
+    background: rgba(255, 255, 255, 0.92);
+    border: 1px solid #d3d3d3;
     font-size: 0.95rem;
-    color: var(--f1-text);
+    color: #111111;
     letter-spacing: 0.02em;
     border-radius: 8px;
 }

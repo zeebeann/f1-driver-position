@@ -18,35 +18,41 @@ const DRIVER_COLORS = {
     'kimi antonelli':   '#00d2be',
     'andrea antonelli': '#00d2be',
     'kimi':             '#00d2be',
-    'leclerc':    '#e8002d',
-    'hamilton':   '#e8002d',
-    'norris':     '#ff8000',
-    'piastri':    '#ff8000',
-    'ocon':       '#ff6b6b',
-    'bearman':    '#ff6b6b',
-    'verstappen': '#1e1e7e',
-    'hadjar':     '#1e1e7e',
-    'lawson':     '#4d7cff',
-    'lindblad':   '#4d7cff',
-    'gasly':      '#9fc4e8',
-    'collapinto': '#9fc4e8',
-    'colapinto':  '#9fc4e8',
-    'hulkenberg': '#6b0000',
-    'bortoleto':  '#6b0000',
-    'sainz':      '#005aff',
-    'albon':      '#005aff',
-    'bottas':     '#c8a951',
-    'valtteri bottas': '#c8a951',
-    'perez':      '#c8a951',
-    'pérez':      '#c8a951',
-    'sergio perez': '#c8a951',
-    'stroll':     '#006f3c',
-    'alonso':     '#006f3c',
+    'leclerc':    '#BB0000',
+    'hamilton':   '#BB0000',
+    'norris':     '#FF6A00',
+    'piastri':    '#FF6A00',
+    'ocon':       '#B5BCBD',
+    'bearman':    '#B5BCBD',
+    'verstappen': '#010D6B',
+    'hadjar':     '#010D6B',
+    'lawson':     '#528CFF',
+    'lindblad':   '#528CFF',
+    'gasly':      '#0081CB',
+    'collapinto': '#0081CB',
+    'colapinto':  '#0081CB',
+    'hulkenberg': '#FF0009',
+    'bortoleto':  '#FF0009',
+    'sainz':      '#0037FF',
+    'albon':      '#0037FF',
+    'bottas':     '#757578',
+    'valtteri bottas': '#757578',
+    'perez':      '#757578',
+    'pérez':      '#757578',
+    'sergio perez': '#757578',
+    'stroll':     '#006345',
+    'alonso':     '#006345',
 };
 
 function getDriverColor(driver) {
     const surname = (driver.driver.surname || '').toLowerCase();
     return DRIVER_COLORS[surname] || '#00ff9f';
+}
+
+function normalizeHexColor(color) {
+    const value = String(color || '').trim();
+    if (!value) return '#00ff9f';
+    return value.startsWith('#') ? value : `#${value}`;
 }
 
 let drivers = [];
@@ -363,7 +369,7 @@ async function selectDriver(driverId) {
 
         const detailsContent = document.getElementById('detailsContent');
         detailsContent.classList.add('active');
-        detailsContent.innerHTML = `<div id=\"detailsTitle\">${driver.driver.name} ${driver.driver.surname}</div><div id=\"stackDepthControl\"><label for=\"stackOffsetInput\">Depth</label><input id=\"stackOffsetInput\" type=\"range\" min=\"-3\" max=\"3\" step=\"0.01\" value=\"0\" /><span id=\"stackOffsetValue\">0.00</span></div><div id=\"sceneShell\"><canvas id=\"threeCanvas\" width=\"900\" height=\"800\" style=\"display:block;margin:auto;\"></canvas><div id=\"sceneLoading\">Loading driver position...</div></div><div id=\"svgTooltip\" class=\"tooltip-card\"></div>`;
+        detailsContent.innerHTML = `<div id=\"detailsTitle\">${driver.driver.name} ${driver.driver.surname}</div><div id=\"stackDepthControl\"><label for=\"stackOffsetInput\">Depth</label><input id=\"stackOffsetInput\" type=\"range\" min=\"-3\" max=\"3\" step=\"0.01\" value=\"0\" /><span id=\"stackOffsetValue\">0.00</span></div><div id=\"sceneShell\"><canvas id=\"threeCanvas\" width=\"1100\" height=\"800\" style=\"display:block;margin:auto;\"></canvas><div id=\"sceneLoading\">Loading driver position...</div></div><div id=\"svgTooltip\" class=\"tooltip-card\"></div>`;
 
         updateStatus(`Loading race data for ${driver.driver.name} ${driver.driver.surname}...`);
         const racePoints = await fetchDriverRacePoints(driverId);
@@ -420,7 +426,7 @@ async function initThreeJS(svgStrings, metadata = []) {
     scene.add(modelRoot);
     const camera = new THREE.PerspectiveCamera(75, canvas.width / canvas.height, 0.1, 1000);
     const renderer = new THREE.WebGLRenderer({ canvas, alpha: true });
-    renderer.setClearColor(0x000000, 0);
+    renderer.setClearColor(0xffffff, 1);
     camera.position.set(0, 0, 2.5); // move camera closer for more zoom
 
     // OrbitControls for mouse rotation
@@ -515,7 +521,7 @@ async function initThreeJS(svgStrings, metadata = []) {
         // Helper to add a thin border outline to a plane
         function addBorder(plane, width, height) {
             const edgeGeom = new THREE.EdgesGeometry(new THREE.PlaneGeometry(width + 0.80, height + 0.40));
-            const edgeMat = new THREE.LineBasicMaterial({ color: 0xffffff });
+            const edgeMat = new THREE.LineBasicMaterial({ color: 0x000000 });
             const border = new THREE.LineSegments(edgeGeom, edgeMat);
             border.position.copy(plane.position);
             border.position.z += 0.001; // just in front to avoid z-fighting
@@ -545,9 +551,9 @@ async function initThreeJS(svgStrings, metadata = []) {
             const tabText = index === 0
                 ? 'CH'
                 : `R${metadata[index]?.round ?? index}`;
-            // Start dark and animate to light on hover (reversed from previous behavior).
-            const labelTextureData = createLabelTexture(tabText, true);
-            const labelTextureDataInverted = createLabelTexture(tabText, false);
+            // Start light and animate to dark on hover.
+            const labelTextureData = createLabelTexture(tabText, false);
+            const labelTextureDataInverted = createLabelTexture(tabText, true);
             const tabH = 0.17;
             const tabW = tabH * (labelTextureData.width / labelTextureData.height);
             const tabGeom = new THREE.PlaneGeometry(tabW, tabH);
@@ -691,7 +697,7 @@ async function initThreeJS(svgStrings, metadata = []) {
             const target = entry.isHovered ? 1 : 0;
             entry.hoverProgress += (target - entry.hoverProgress) * 0.16;
 
-            // Animation 1: invert tab colors by cross-fading dark -> light on hover.
+            // Animation 1: invert tab colors by cross-fading light -> dark on hover.
             entry.tabMat.opacity = 1 - entry.hoverProgress;
             entry.tabMatInverted.opacity = entry.hoverProgress;
 
@@ -734,9 +740,10 @@ async function renderPositionAsDigits(position, color = '#ff6b6b') {
     const numericPosition = Number(position);
     if (!Number.isFinite(numericPosition) || numericPosition < 1 || numericPosition > 22) return '';
     const svg = await loadSVG(`${numericPosition}.svg`);
-    // Use driver color at 50% opacity
+    const highlightColor = normalizeHexColor(color);
+    // Keep highlights slightly translucent for depth while preserving team hue.
     const coloredSVG = svg.replace(/<circle([^>]*)fill="#484848"([^>]*)\/>/g,
-        (_, pre, post) => `<circle${pre}fill="${color}" fill-opacity="0.5"${post}/>`);
+        (_, pre, post) => `<circle${pre}fill="${highlightColor}" fill-opacity="0.55"${post}/>`);
     return `<div class="position-svg">${coloredSVG}</div>`;
 }
 
@@ -746,6 +753,7 @@ async function renderPositionAsDigits(position, color = '#ff6b6b') {
 async function renderRaceGrid(points, position, color = '#00ff9f') {
     const numericPosition = Number(position);
     if (!Number.isFinite(numericPosition) || numericPosition < 1 || numericPosition > 22) return '';
+    const highlightColor = normalizeHexColor(color);
     let svg = await loadSVG(`${numericPosition}.svg`);
     // Randomly select which circles are colored for points
     // Find all <circle ... fill="#484848" ... />
@@ -767,12 +775,12 @@ async function renderRaceGrid(points, position, color = '#00ff9f') {
     svg = svg.replace(circleRegex, (full, pre, post, offset) => {
         if (coloredSet.has(replaced)) {
             replaced++;
-            return `<circle${pre}fill="${color}"${post}/>`;
+            return `<circle${pre}fill="${highlightColor}" fill-opacity="0.55"${post}/>`;
         } else {
             replaced++;
             // Shrink non-coloured circles slightly
             const shrunk = (pre + post).replace(/\br="13"/, 'r="5"');
-            return `<circle${shrunk}fill="#ececec"/>`;
+            return `<circle${shrunk}fill="#4f4f4f"/>`;
         }
     });
     return `<div class="race-svg">${svg}</div>`;
